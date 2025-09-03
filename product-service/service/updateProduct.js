@@ -1,5 +1,6 @@
 // Lógica para actualizar un producto
 import { Product, ProductHistory } from '../models/index.js';
+import { getNatsConnection, sc } from '../core/nats.js';
 
 export default async function updateProduct(gtin, data) {
   let oldProduct = null;
@@ -25,6 +26,22 @@ export default async function updateProduct(gtin, data) {
       oldData: oldProduct.toObject(),
       newData: updatedProduct.toObject(),
     });
+
+    // Emitir mensaje a NATS
+    try {
+      const nc = await getNatsConnection();
+      await nc.publish(
+        'product.updated',
+        sc.encode(
+          JSON.stringify({
+            oldData: oldProduct.toObject(),
+            newData: updatedProduct.toObject(),
+          })
+        )
+      );
+    } catch (natsError) {
+      console.error('Error al emitir mensaje NATS:', natsError);
+    }
 
     return updatedProduct;
   } catch (error) {

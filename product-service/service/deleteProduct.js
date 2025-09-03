@@ -1,5 +1,6 @@
 // Lógica para eliminar un producto
 import { Product, ProductHistory } from '../models/index.js';
+import { getNatsConnection, sc } from '../core/nats.js';
 
 export default async function deleteProduct(gtin) {
   let deletedProduct = null;
@@ -18,6 +19,17 @@ export default async function deleteProduct(gtin) {
       oldData: deletedProduct.toObject(),
       newData: null,
     });
+
+    // Emitir mensaje a NATS
+    try {
+      const nc = await getNatsConnection();
+      await nc.publish(
+        'product.deleted',
+        sc.encode(JSON.stringify(deletedProduct.toObject()))
+      );
+    } catch (natsError) {
+      console.error('Error al emitir mensaje NATS:', natsError);
+    }
 
     return 'Producto eliminado';
   } catch (error) {

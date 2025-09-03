@@ -7,7 +7,6 @@ export default function connectDB() {
     throw new Error('MONGODB_URI no está definida en las variables de entorno');
   }
   return mongoose.connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000,
   });
 }

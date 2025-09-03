@@ -1,7 +1,9 @@
 import {
   searchProductsElastic,
   getProductById,
+  createIndexIfNotExists,
 } from './elastic/productIndex.js';
+import { elasticClient } from './elastic/client.js';
 
 import express from 'express';
 import cors from 'cors';
@@ -15,12 +17,30 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Función para verificar la conexión a Elasticsearch
+async function checkElasticsearchConnection() {
+  try {
+    console.log('Verificando conexión a Elasticsearch...');
+    await elasticClient.ping();
+    console.log('✅ Conexión a Elasticsearch establecida');
+
+    // Crear índice si no existe
+    await createIndexIfNotExists();
+    return true;
+  } catch (error) {
+    console.error('❌ Error conectando a Elasticsearch:', error.message);
+    return false;
+  }
+}
+
 // Ruta de health check
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  const elasticStatus = await checkElasticsearchConnection();
   res.json({
-    status: 'healthy',
+    status: elasticStatus ? 'healthy' : 'unhealthy',
     service: 'search-service',
     uptime: process.uptime(),
+    elasticsearch: elasticStatus ? 'connected' : 'disconnected',
   });
 });
 
@@ -55,9 +75,24 @@ app.get('/product/:id', async (req, res) => {
 
 const PORT = process.env.PORT || 4002;
 
-app.listen(PORT, () => {
-  console.log(`🔍 Search Service running on port ${PORT}`);
-  console.log(`🚀 API endpoint: http://localhost:${PORT}`);
-  // Iniciar listeners de NATS
-  startListeners();
-});
+// Iniciar el servidor
+async function startServer() {
+  // Verificar conexión a Elasticsearch antes de iniciar
+  const elasticConnected = await checkElasticsearchConnection();
+  if (!elasticConnected) {
+    console.log(
+      '⚠️  Iniciando sin conexión a Elasticsearch. Reintentando cada 30s...'
+    );
+    // Reintentar conexión cada 30 segundos
+    setInterval(checkElasticsearchConnection, 30000);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`🔍 Search Service running on port ${PORT}`);
+    console.log(`🚀 API endpoint: http://localhost:${PORT}`);
+    // Iniciar listeners de NATS
+    startListeners();
+  });
+}
+
+startServer();
