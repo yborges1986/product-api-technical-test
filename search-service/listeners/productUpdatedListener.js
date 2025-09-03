@@ -12,9 +12,9 @@ export default async function productUpdatedListener() {
     const sub = nc.subscribe('product.updated');
     console.log('Esperando mensajes en product.updated...');
 
-    for await (const m of sub) {
+    for await (const message of sub) {
       try {
-        const data = JSON.parse(sc.decode(m.data));
+        const data = JSON.parse(sc.decode(message.data));
         console.log('Mensaje recibido en product.updated:', data);
 
         // Indexar el producto actualizado

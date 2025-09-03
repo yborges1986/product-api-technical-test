@@ -51,6 +51,9 @@ services:
       - NODE_ENV=development
       - NATS_URL=nats://nats:4222
       - SERVICE_TOKEN=treew-internal-secret-2024
+      - JWT_SECRET=treew-super-secret-jwt-key-2024
+      - JWT_EXPIRES_IN=24h
+      - BCRYPT_ROUNDS=12
     depends_on:
       - mongo
       - nats

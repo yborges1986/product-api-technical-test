@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { graphqlHTTP } from 'express-graphql';
+import { buildSchema } from 'graphql';
 import cors from 'cors';
 import express from 'express';
 import morgan from 'morgan';
@@ -7,8 +8,24 @@ import winston from 'winston';
 
 import connectDB from './core/database/mongo.js';
 
-import { schema, root } from './graphql/product.graphql.js';
+// Importar schemas y resolvers modulares
+import { schema, resolvers } from './graphql/product.graphql.js';
+
+// Importar middleware
 import { serviceAuth, serviceLogger } from './middleware/serviceAuth.js';
+import {
+  authMiddleware,
+  createGraphQLContext,
+} from './middleware/auth.middleware.js';
+
+// Importar seeds
+import { initializeUsers } from './seeds/users.seed.js';
+
+// Usar schemas y resolvers modulares
+const mergedSchema = buildSchema(schema);
+
+// Usar resolvers modulares
+const mergedResolvers = resolvers;
 
 const logger = winston.createLogger({
   level: 'info',
@@ -33,7 +50,7 @@ const corsOptions = {
 
     // En producción, definir orígenes permitidos
     const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-      'http://localhost:3001', // Microservicio de búsqueda
+      'http://localhost:4002', // Microservicio de búsqueda
     ];
 
     // Permitir peticiones sin origin (ej: aplicaciones móviles, Postman)
@@ -53,17 +70,25 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Middleware de logging HTTP
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Middleware para comunicación entre microservicios
 app.use(serviceLogger);
-app.use('/graphql', serviceAuth); // Proteger GraphQL con autenticación de servicio
 
-// Conexión a MongoDB
+app.use('/graphql', authMiddleware);
+
+// Mantener autenticación de servicio solo para comunicación entre microservicios en producción
+if (process.env.NODE_ENV === 'production') {
+  app.use('/graphql', serviceAuth);
+}
+
+// Conexión a MongoDB e inicialización
 connectDB()
-  .then(() => logger.info('Conectado a MongoDB'))
+  .then(async () => {
+    logger.info('Conectado a MongoDB');
+    // Inicializar usuarios del sistema
+    await initializeUsers();
+  })
   .catch((err) => logger.error('Error conectando a MongoDB:', err));
 
 // Health check endpoint para microservicios
@@ -92,9 +117,10 @@ app.get('/', (req, res) => {
 
 app.use(
   '/graphql',
-  graphqlHTTP({
-    schema,
-    rootValue: root,
+  graphqlHTTP((req) => ({
+    schema: mergedSchema,
+    rootValue: mergedResolvers,
+    context: createGraphQLContext(req),
     graphiql: process.env.NODE_ENV !== 'production', // GraphiQL solo en desarrollo
     customFormatErrorFn: (err) => {
       logger.error(`[GraphQL Error] ${err.message}\n${err.stack}`);
@@ -105,7 +131,7 @@ app.use(
         extensions: err.extensions,
       };
     },
-  })
+  }))
 );
 
 // Middleware global de manejo de errores

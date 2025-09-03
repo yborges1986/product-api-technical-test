@@ -25,8 +25,6 @@ export async function createIndexIfNotExists() {
         },
       });
       console.log(`Índice ${INDEX} creado exitosamente`);
-    } else {
-      console.log(`Índice ${INDEX} ya existe`);
     }
   } catch (error) {
     console.error('Error creando índice:', error);
@@ -44,7 +42,7 @@ export async function indexProduct(product) {
     await elasticClient.index({
       index: INDEX,
       id: _id,
-      document: cleanProduct, // Cambié 'body' por 'document' para ES 8.x
+      document: cleanProduct,
     });
     console.log(`Producto indexado: ${_id}`);
   } catch (error) {
