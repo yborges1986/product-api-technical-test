@@ -1,0 +1,35 @@
+{
+  "name": "product-management-service",
+  "type": "module",
+  "version": "1.0.0",
+  "main": "index.js",
+  "description": "Microservicio de gestión de productos - CRUD y historial de cambios",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo \"Build completed\"",
+    "health": "curl -f http://localhost:${PORT:-3000}/health || exit 1"
+  },
+  "keywords": [
+    "microservice",
+    "products",
+    "crud",
+    "graphql",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nats": "^1.19.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-graphql": "^0.12.0",
+    "graphql": "^16.11.0",
+    "mongoose": "^8.18.0",
+    "morgan": "^1.10.1",
+    "nodemon": "^3.1.10",
+    "winston": "^3.17.0"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@elastic/elasticsearch": "^7.17.0",
+    "nats": "^2.29.3"
+  }
+}
