@@ -6,11 +6,9 @@ async function listenNats() {
   const sc = StringCodec();
 
   const sub = nc.subscribe('product.created');
-  console.log('Esperando mensajes en product.created...');
   for await (const m of sub) {
     try {
       const data = JSON.parse(sc.decode(m.data));
-      console.log('Producto recibido desde NATS:', data);
     } catch (err) {
       console.error('Error al procesar mensaje NATS:', err);
     }

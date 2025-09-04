@@ -5,7 +5,8 @@ import Product from '../../models/product.model.js';
 export async function getProduct(gtin, user) {
   const product = await Product.findOne({ gtin })
     .populate('createdBy')
-    .populate('approvedBy');
+    .populate('approvedBy')
+    .populate('history');
 
   if (!product) {
     return null;
@@ -23,7 +24,35 @@ export async function getProduct(gtin, user) {
     }
   }
 
-  return product;
+  // Convertir el producto a objeto plano
+  const productObj = product.toObject();
+
+  // Convertir campos del historial a JSON strings si es necesario
+  if (productObj.history && Array.isArray(productObj.history)) {
+    productObj.history = productObj.history.map((entry) => {
+      const historyEntry = { ...entry };
+
+      if (historyEntry.changes && typeof historyEntry.changes === 'object') {
+        historyEntry.changes = JSON.stringify(historyEntry.changes);
+      }
+      if (
+        historyEntry.previousData &&
+        typeof historyEntry.previousData === 'object'
+      ) {
+        historyEntry.previousData = JSON.stringify(historyEntry.previousData);
+      }
+      if (historyEntry.newData && typeof historyEntry.newData === 'object') {
+        historyEntry.newData = JSON.stringify(historyEntry.newData);
+      }
+      if (historyEntry.metadata && typeof historyEntry.metadata === 'object') {
+        historyEntry.metadata = JSON.stringify(historyEntry.metadata);
+      }
+
+      return historyEntry;
+    });
+  }
+
+  return productObj;
 }
 
 // Obtener todos los productos con filtros por rol

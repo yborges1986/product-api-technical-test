@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { recordAuditEntry } from '../utils/audit.util.js';
 
 const productSchema = new mongoose.Schema(
   {
@@ -39,7 +40,7 @@ const productSchema = new mongoose.Schema(
       },
       required: true,
     },
-    // Nuevos campos para FASE 2 - Estados y flujo editorial
+
     status: {
       type: String,
       enum: ['pending', 'published'],
@@ -64,6 +65,7 @@ const productSchema = new mongoose.Schema(
   {
     timestamps: true, // Agrega createdAt y updatedAt automáticamente
     toJSON: {
+      virtuals: true, // Incluir virtuals en JSON
       transform: function (doc, ret) {
         ret.id = ret._id.toString();
         delete ret._id;
@@ -72,6 +74,7 @@ const productSchema = new mongoose.Schema(
       },
     },
     toObject: {
+      virtuals: true, // Incluir virtuals en Object
       transform: function (doc, ret) {
         ret.id = ret._id.toString();
         delete ret._id;
@@ -86,6 +89,129 @@ const productSchema = new mongoose.Schema(
 productSchema.index({ status: 1 });
 productSchema.index({ createdBy: 1 });
 productSchema.index({ status: 1, createdBy: 1 });
+
+// ==================== VIRTUAL POPULATE ====================
+
+// Virtual populate para el historial del producto
+productSchema.virtual('history', {
+  ref: 'ProductHistory',
+  localField: '_id', // Campo en Product (ObjectId)
+  foreignField: 'productId', // Campo en ProductHistory
+  options: {
+    sort: { changedAt: -1 }, // Más reciente primero
+    limit: 10, // Solo los últimos 10 registros
+    populate: { path: 'changedBy' }, // Poblar también el usuario que hizo el cambio
+  },
+});
+
+// ==================== HOOKS DE AUDITORÍA ====================
+
+// Variable para almacenar datos anteriores antes del save
+productSchema.pre('save', async function (next) {
+  try {
+    // Solo para documentos existentes (updates)
+    if (!this.isNew) {
+      // Obtener datos originales del documento antes de la modificación
+      const originalDoc = await this.constructor.findById(this._id).lean();
+      this._originalData = originalDoc;
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Hook post-save para registrar cambios
+productSchema.post('save', async function (doc) {
+  try {
+    const userId = this._auditUser; // Usuario será establecido desde el servicio
+
+    if (!userId) {
+      console.warn('No audit user found for product change:', doc.gtin);
+      return;
+    }
+
+    // Verificar si es creación (no tiene _originalData) o actualización
+    if (!this._originalData) {
+      // Producto nuevo - registrar creación
+      await recordAuditEntry({
+        gtin: doc.gtin,
+        productId: doc._id,
+        action: 'created',
+        changedBy: userId,
+        previousData: null,
+        newData: doc.toObject(),
+        changes: null,
+      });
+    } else {
+      // Producto existente - registrar actualización
+      await recordAuditEntry({
+        gtin: doc.gtin,
+        productId: doc._id,
+        action: 'updated',
+        changedBy: userId,
+        previousData: this._originalData,
+        newData: doc.toObject(),
+      });
+    }
+  } catch (error) {
+    console.error('Error in post-save audit hook:', error);
+    // No lanzamos error para no afectar el flujo principal
+  }
+});
+
+// Hook para registrar eliminaciones
+productSchema.pre(
+  'deleteOne',
+  { document: true, query: false },
+  async function (next) {
+    try {
+      const userId = this._auditUser;
+
+      if (userId) {
+        await recordAuditEntry({
+          gtin: this.gtin,
+          productId: this._id,
+          action: 'deleted',
+          changedBy: userId,
+          previousData: this.toObject(),
+          newData: null,
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Error in pre-deleteOne audit hook:', error);
+      next(error);
+    }
+  }
+);
+
+// Hook específico para aprobaciones (se llamará manualmente desde el servicio)
+productSchema.methods.recordApproval = async function (approvedBy) {
+  try {
+    const previousData =
+      this._originalData || (await this.constructor.findById(this._id).lean());
+
+    await recordAuditEntry({
+      gtin: this.gtin,
+      productId: this._id,
+      action: 'approved',
+      changedBy: approvedBy,
+      previousData,
+      newData: this.toObject(),
+    });
+  } catch (error) {
+    console.error('Error recording approval audit:', error);
+    throw error;
+  }
+};
+
+// Método para establecer el usuario de auditoría
+productSchema.methods.setAuditUser = function (userId) {
+  this._auditUser = userId;
+  return this;
+};
 
 const Product = mongoose.model('Product', productSchema);
 export default Product;

@@ -9,6 +9,8 @@ export const resolvers = {
   product: productResolvers.product,
   productsByStatus: productResolvers.productsByStatus,
   pendingProducts: productResolvers.pendingProducts,
+  productHistory: productResolvers.productHistory,
+  auditHistory: productResolvers.auditHistory, // Nuevo resolver de auditoría
 
   // Queries - autenticación
   me: authResolvers.me,

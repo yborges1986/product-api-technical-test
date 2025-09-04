@@ -87,13 +87,6 @@ Registrar automáticamente todos los cambios en productos.
 - [ ] Query: `productHistory(gtin: String!): [ProductHistory]`
 - [ ] Incluir historial en query `product(gtin: String!)`
 
-#### 4. **Integrar con NATS**
-
-- [ ] Emitir eventos de historial para sincronización
-- [ ] Actualizar listeners en search-service
-
----
-
 ## 📋 FASE 4 - Mejoras Modelo GS1
 
 ### 🎯 Objetivo:
@@ -199,16 +192,3 @@ NODE_ENV=development
 - ✅ Elasticsearch: Funcionando para búsquedas
 
 ---
-
-## 🎯 PRÓXIMO PASO AL REGRESAR:
-
-**Empezar FASE 2**: Actualizar modelo de Product para agregar estados y lógica de flujo editorial.
-
-### Archivos a modificar:
-
-1. `product-service/models/product.model.js`
-2. `product-service/service/createProduct.js`
-3. `product-service/graphql/product.graphql.js`
-4. Agregar nuevos resolvers para aprobación
-
-¡Buen almuerzo! 🍽️

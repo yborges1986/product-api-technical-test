@@ -7,11 +7,11 @@ import {
   updateProduct,
   deleteProduct,
   approveProduct,
+  getProductHistoryService,
+  getAuditHistory,
 } from '../../services/product/index.js';
 
-// Resolvers para productos
 export const productResolvers = {
-  // Queries
   products: async (args, context) => {
     const { user } = context;
     return await getProducts(user);
@@ -38,7 +38,17 @@ export const productResolvers = {
     return await getPendingProducts(user);
   },
 
-  // Mutations
+  productHistory: async ({ gtin, limit = 50, offset = 0, action }, context) => {
+    const { user } = context;
+    const options = { limit: Math.min(limit, 100), offset, action };
+    return await getProductHistoryService(gtin, user, options);
+  },
+
+  auditHistory: async (args, context) => {
+    const { user } = context;
+    return await getAuditHistory(args, user);
+  },
+
   createProduct: async ({ input }, context) => {
     const { user } = context;
     if (!user) {
@@ -60,7 +70,7 @@ export const productResolvers = {
     if (!user) {
       throw new Error('Usuario no autenticado');
     }
-    return await deleteProduct(gtin);
+    return await deleteProduct(gtin, user);
   },
 
   approveProduct: async ({ gtin }, context) => {

@@ -1,31 +1,27 @@
 // Lógica para eliminar un producto
-import { Product, ProductHistory } from '../../models/index.js';
+import { Product } from '../../models/index.js';
 import { getNatsConnection, sc } from '../../core/nats.js';
 
-export default async function deleteProduct(gtin) {
-  let deletedProduct = null;
-
+export default async function deleteProduct(gtin, user) {
   try {
-    // Buscar y eliminar el producto
-    deletedProduct = await Product.findOneAndDelete({ gtin });
-    if (!deletedProduct) {
+    // Buscar el producto
+    const product = await Product.findOne({ gtin });
+    if (!product) {
       throw new Error('Producto no encontrado');
     }
 
-    // Registrar historial
-    await ProductHistory.create({
-      productId: deletedProduct._id,
-      changeType: 'delete',
-      oldData: deletedProduct.toObject(),
-      newData: null,
-    });
+    // Establecer usuario para auditoría antes de eliminar
+    product.setAuditUser(user.id || user._id);
+
+    // Usar el método deleteOne del documento para activar hooks
+    await product.deleteOne();
 
     // Emitir mensaje a NATS
     try {
       const nc = await getNatsConnection();
       await nc.publish(
         'product.deleted',
-        sc.encode(JSON.stringify(deletedProduct.toObject()))
+        sc.encode(JSON.stringify(product.toObject()))
       );
     } catch (natsError) {
       console.error('Error al emitir mensaje NATS:', natsError);
@@ -33,15 +29,6 @@ export default async function deleteProduct(gtin) {
 
     return 'Producto eliminado';
   } catch (error) {
-    // Si hay error y el producto fue eliminado, restaurarlo
-    if (deletedProduct) {
-      try {
-        const restoredProduct = new Product(deletedProduct.toObject());
-        await restoredProduct.save();
-      } catch (rollbackError) {
-        console.error('Error durante rollback:', rollbackError);
-      }
-    }
     throw error;
   }
 }

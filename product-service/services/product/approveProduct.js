@@ -1,4 +1,4 @@
-import { Product, ProductHistory } from '../../models/index.js';
+import { Product } from '../../models/index.js';
 import { getNatsConnection, sc } from '../../core/nats.js';
 
 export default async function approveProduct(gtin, user) {
@@ -19,27 +19,20 @@ export default async function approveProduct(gtin, user) {
       throw new Error('Solo se pueden aprobar productos en estado pending');
     }
 
-    // Guardar estado anterior para historial
-    const oldData = product.toObject();
-
     // Actualizar el producto
     product.status = 'published';
     product.approvedBy = user.id || user._id;
     product.approvedAt = new Date();
+
+    // Establecer usuario para auditoría y registrar la aprobación
+    product.setAuditUser(user.id || user._id);
+    await product.recordApproval(user.id || user._id);
 
     const savedProduct = await product.save();
 
     // Populate los campos de usuario para la respuesta de GraphQL
     await savedProduct.populate('createdBy');
     await savedProduct.populate('approvedBy');
-
-    // Crear registro en historial
-    await ProductHistory.create({
-      productId: savedProduct._id,
-      changeType: 'approve',
-      oldData,
-      newData: savedProduct.toObject(),
-    });
 
     // Emitir mensaje a NATS para sincronizar con search-service
     try {

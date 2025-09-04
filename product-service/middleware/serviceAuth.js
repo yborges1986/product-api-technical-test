@@ -24,7 +24,6 @@ export function serviceAuth(req, res, next) {
   next();
 }
 
-// Middleware para logging de comunicación entre servicios
 export function serviceLogger(req, res, next) {
   const serviceOrigin = req.headers['x-service-origin'] || 'unknown';
   const serviceVersion = req.headers['x-service-version'] || 'unknown';

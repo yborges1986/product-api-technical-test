@@ -17,16 +17,8 @@ class ProductCreatedListener extends BaseListener {
    * @param {Object} messageData - Datos del mensaje recibido
    */
   async handleMessage(messageData) {
-    // Limpiar datos para Elasticsearch
     const cleanProductData = this.cleanProductData(messageData);
-
-    // Indexar el nuevo producto en Elasticsearch
     await indexProduct(cleanProductData);
-
-    console.log(
-      '✅ Producto indexado en Elasticsearch:',
-      cleanProductData.id || cleanProductData._id
-    );
   }
 }
 

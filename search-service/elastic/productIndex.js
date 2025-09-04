@@ -30,7 +30,6 @@ export async function createIndexIfNotExists() {
           },
         },
       });
-      console.log(`Índice ${INDEX} creado exitosamente`);
     }
   } catch (error) {
     console.error('Error creando índice:', error);
@@ -59,7 +58,6 @@ export async function indexProduct(product) {
       id: productId,
       document: cleanProduct,
     });
-    console.log(`Producto indexado: ${productId}`);
   } catch (error) {
     console.error('Error indexando producto:', error);
     throw error;
@@ -114,10 +112,8 @@ export async function deleteProductFromIndex(id) {
       index: INDEX,
       id: id,
     });
-    console.log(`Producto con ID ${id} eliminado del índice`);
   } catch (error) {
     if (error.statusCode === 404) {
-      console.log(`Producto con ID ${id} no encontrado en el índice`);
       return;
     }
     console.error('Error eliminando producto del índice:', error);

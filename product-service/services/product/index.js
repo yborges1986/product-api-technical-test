@@ -8,6 +8,8 @@ import {
 import updateProduct from './updateProduct.js';
 import deleteProduct from './deleteProduct.js';
 import approveProduct from './approveProduct.js';
+import getProductHistoryService from './getProductHistory.js';
+import getAuditHistory from './getAuditHistory.js';
 
 export {
   createProduct,
@@ -18,4 +20,6 @@ export {
   updateProduct,
   deleteProduct,
   approveProduct,
+  getProductHistoryService,
+  getAuditHistory,
 };

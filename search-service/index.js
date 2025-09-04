@@ -20,11 +20,7 @@ app.use(express.json());
 // Función para verificar la conexión a Elasticsearch
 async function checkElasticsearchConnection() {
   try {
-    console.log('Verificando conexión a Elasticsearch...');
     await elasticClient.ping();
-    console.log('✅ Conexión a Elasticsearch establecida');
-
-    // Crear índice si no existe
     await createIndexIfNotExists();
     return true;
   } catch (error) {
@@ -77,20 +73,16 @@ const PORT = process.env.PORT || 4002;
 
 // Iniciar el servidor
 async function startServer() {
-  // Verificar conexión a Elasticsearch antes de iniciar
   const elasticConnected = await checkElasticsearchConnection();
   if (!elasticConnected) {
     console.log(
       '⚠️  Iniciando sin conexión a Elasticsearch. Reintentando cada 30s...'
     );
-    // Reintentar conexión cada 30 segundos
     setInterval(checkElasticsearchConnection, 30000);
   }
 
   app.listen(PORT, () => {
-    console.log(`🔍 Search Service running on port ${PORT}`);
-    console.log(`🚀 API endpoint: http://localhost:${PORT}`);
-    // Iniciar listeners de NATS
+    console.log(`Search Service running on port ${PORT}`);
     startListeners();
   });
 }

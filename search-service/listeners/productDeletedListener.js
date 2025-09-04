@@ -25,10 +25,7 @@ class ProductDeletedListener extends BaseListener {
       );
     }
 
-    // Eliminar el producto del índice de Elasticsearch
     await deleteProductFromIndex(productId);
-
-    console.log('✅ Producto eliminado de Elasticsearch:', productId);
   }
 }
 

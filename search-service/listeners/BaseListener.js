@@ -24,7 +24,6 @@ export class BaseListener {
       this.natsConnection = await connect({ servers: this.natsUrl });
       this.stringCodec = StringCodec();
       this.reconnectAttempts = 0;
-      console.log(`✅ ${this.listenerName} conectado a NATS: ${this.natsUrl}`);
       return this.natsConnection;
     } catch (error) {
       this.logError('Error al conectar con NATS', error);
@@ -79,12 +78,9 @@ export class BaseListener {
   async processMessage(message) {
     try {
       const messageData = this.decodeMessage(message);
-      console.log(`📨 Mensaje recibido en ${this.subject}:`, messageData);
-
       await this.handleMessage(messageData);
     } catch (error) {
       this.logError(`Error al procesar mensaje ${this.subject}`, error);
-      // No relanzar el error para que el listener continúe funcionando
     }
   }
 
@@ -94,11 +90,7 @@ export class BaseListener {
   async start() {
     try {
       await this.connect();
-
       const subscription = this.natsConnection.subscribe(this.subject);
-      console.log(
-        `👂 ${this.listenerName} esperando mensajes en ${this.subject}...`
-      );
 
       for await (const message of subscription) {
         await this.processMessage(message);
@@ -159,7 +151,6 @@ export class BaseListener {
   async close() {
     if (this.natsConnection) {
       await this.natsConnection.close();
-      console.log(`🔌 ${this.listenerName} desconectado de NATS`);
     }
   }
 }

@@ -1,9 +1,17 @@
 import User from '../models/user.model.js';
 
 /**
- * Datos del usuario administrador inicial
- */
-const ADMIN_USER_DATA = {
+ * Datos del usuario administrexport const initializeUsers = async () => {
+  try {
+    await createAdminUser();
+
+    if (process.env.NODE_ENV === 'development') {
+      await createTestUsers();
+    }
+  } catch (error) {
+    console.error('❌ Error en inicialización de usuarios:', error.message);
+  }
+};onst ADMIN_USER_DATA = {
   name: 'Administrador Principal',
   email: 'admin@treew.com',
   password: 'admin1234',
@@ -42,18 +50,11 @@ export const createAdminUser = async () => {
     });
 
     if (existingAdmin) {
-      console.log('✅ Usuario admin ya existe:', ADMIN_USER_DATA.email);
       return existingAdmin;
     }
 
-    // Crear usuario admin
     const adminUser = new User(ADMIN_USER_DATA);
     await adminUser.save();
-
-    console.log('🎉 Usuario admin creado exitosamente:');
-    console.log(`   Email: ${ADMIN_USER_DATA.email}`);
-    console.log(`   Password: ${ADMIN_USER_DATA.password}`);
-    console.log(`   Rol: ${ADMIN_USER_DATA.role}`);
 
     return adminUser;
   } catch (error) {
@@ -67,23 +68,14 @@ export const createAdminUser = async () => {
  */
 export const createTestUsers = async () => {
   try {
-    console.log('🧪 Creando usuarios de prueba...');
-
     for (const userData of TEST_USERS) {
       const existingUser = await User.findOne({ email: userData.email });
 
       if (!existingUser) {
         const user = new User(userData);
         await user.save();
-        console.log(
-          `✅ Usuario de prueba creado: ${userData.email} (${userData.role})`
-        );
-      } else {
-        console.log(`⚠️  Usuario ya existe: ${userData.email}`);
       }
     }
-
-    console.log('🎉 Usuarios de prueba listos');
   } catch (error) {
     console.error('❌ Error creando usuarios de prueba:', error.message);
     throw error;
@@ -119,7 +111,6 @@ export const cleanTestUsers = async () => {
   try {
     const testEmails = TEST_USERS.map((user) => user.email);
     await User.deleteMany({ email: { $in: testEmails } });
-    console.log('🧹 Usuarios de prueba eliminados');
   } catch (error) {
     console.error('❌ Error limpiando usuarios de prueba:', error.message);
   }

@@ -17,16 +17,8 @@ class ProductApprovedListener extends BaseListener {
    * @param {Object} messageData - Datos del mensaje recibido
    */
   async handleMessage(messageData) {
-    // Limpiar datos para Elasticsearch
     const cleanProductData = this.cleanProductData(messageData);
-
-    // Al aprobar un producto, lo indexamos en Elasticsearch
     await indexProduct(cleanProductData);
-
-    console.log(
-      '✅ Producto aprobado indexado en Elasticsearch:',
-      cleanProductData.id || cleanProductData._id
-    );
   }
 }
 

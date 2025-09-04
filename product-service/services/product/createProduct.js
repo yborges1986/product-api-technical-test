@@ -1,4 +1,4 @@
-import { Product, ProductHistory } from '../../models/index.js';
+import { Product } from '../../models/index.js';
 import { getNatsConnection, sc } from '../../core/nats.js';
 
 export default async function createProduct(data, user) {
@@ -21,8 +21,12 @@ export default async function createProduct(data, user) {
       }),
     };
 
-    // Crear el producto
+    // Crear el producto con auditoría
     const product = new Product(productData);
+
+    // Establecer usuario para auditoría
+    product.setAuditUser(user.id || user._id);
+
     savedProduct = await product.save();
 
     // Populate los campos de usuario para la respuesta de GraphQL
@@ -30,14 +34,6 @@ export default async function createProduct(data, user) {
     if (savedProduct.approvedBy) {
       await savedProduct.populate('approvedBy');
     }
-
-    // Crear el historial
-    await ProductHistory.create({
-      productId: savedProduct._id,
-      changeType: 'create',
-      oldData: null,
-      newData: savedProduct.toObject(),
-    });
 
     // Emitir mensaje a NATS solo si está published
     if (savedProduct.status === 'published') {
