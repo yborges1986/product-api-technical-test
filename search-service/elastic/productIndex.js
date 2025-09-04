@@ -18,9 +18,15 @@ export async function createIndexIfNotExists() {
             description: { type: 'text', analyzer: 'standard' },
             brand: { type: 'text', analyzer: 'standard' },
             manufacturer: { type: 'text', analyzer: 'standard' },
+            // Peso neto con valor numérico y unidad
             netWeight: { type: 'float' },
+            netWeightUnit: { type: 'keyword' },
+            status: { type: 'keyword' },
+            createdById: { type: 'keyword' },
+            approvedById: { type: 'keyword' },
             createdAt: { type: 'date' },
             updatedAt: { type: 'date' },
+            approvedAt: { type: 'date' },
           },
         },
       });
@@ -36,15 +42,24 @@ export async function indexProduct(product) {
     // Asegurar que el índice existe
     await createIndexIfNotExists();
 
+    // Obtener el ID del producto (puede venir como _id o id)
+    const productId = product._id || product.id;
+    if (!productId) {
+      throw new Error('No se encontró ID del producto para indexar');
+    }
+
     // Crear una copia del producto sin los campos de metadata de MongoDB
     const { _id, __v, ...cleanProduct } = product;
 
+    // Asegurar que el campo 'id' esté presente en el documento
+    cleanProduct.id = productId;
+
     await elasticClient.index({
       index: INDEX,
-      id: _id,
+      id: productId,
       document: cleanProduct,
     });
-    console.log(`Producto indexado: ${_id}`);
+    console.log(`Producto indexado: ${productId}`);
   } catch (error) {
     console.error('Error indexando producto:', error);
     throw error;

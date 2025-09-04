@@ -1,40 +1,35 @@
 // listeners/productUpdatedListener.js
 
-import { connect, StringCodec } from 'nats';
+import { BaseListener } from './BaseListener.js';
 import { indexProduct } from '../elastic/productIndex.js';
 
-export default async function productUpdatedListener() {
-  try {
-    const natsUrl = process.env.NATS_URL || 'nats://localhost:4222';
-    const nc = await connect({ servers: natsUrl });
-    const sc = StringCodec();
-
-    const sub = nc.subscribe('product.updated');
-    console.log('Esperando mensajes en product.updated...');
-
-    for await (const message of sub) {
-      try {
-        const data = JSON.parse(sc.decode(message.data));
-        console.log('Mensaje recibido en product.updated:', data);
-
-        // Indexar el producto actualizado
-        const productToIndex = data.newData || data;
-        await indexProduct(productToIndex);
-        console.log(
-          'Producto actualizado en Elasticsearch:',
-          productToIndex.id || productToIndex._id
-        );
-      } catch (err) {
-        console.error('Error al procesar mensaje product.updated:', err);
-        // No lanzar el error para que el listener continue funcionando
-      }
-    }
-  } catch (error) {
-    console.error('Error en productUpdatedListener:', error);
-    // Reintentar después de un delay
-    setTimeout(() => {
-      console.log('Reintentando conexión a productUpdatedListener...');
-      productUpdatedListener();
-    }, 5000);
+/**
+ * Listener para eventos de productos actualizados
+ * Actualiza el índice de Elasticsearch cuando un producto es modificado
+ */
+class ProductUpdatedListener extends BaseListener {
+  constructor() {
+    super('product.updated', 'ProductUpdatedListener');
   }
+
+  /**
+   * Maneja mensajes de producto actualizado
+   * @param {Object} messageData - Datos del mensaje recibido
+   */
+  async handleMessage(messageData) {
+    // Obtener los datos del producto actualizado
+    const updatedProductData = messageData.newData || messageData;
+
+    // Limpiar datos para Elasticsearch
+    const cleanProductData = this.cleanProductData(updatedProductData);
+
+    // Indexar el producto actualizado en Elasticsearch
+    await indexProduct(cleanProductData);
+  }
+}
+
+// Función exportada para mantener compatibilidad con la implementación anterior
+export default async function productUpdatedListener() {
+  const listener = new ProductUpdatedListener();
+  await listener.start();
 }

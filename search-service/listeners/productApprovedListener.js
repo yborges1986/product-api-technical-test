@@ -1,37 +1,37 @@
-// listeners/productCreatedListener.js
+// listeners/productApprovedListener.js
 
 import { BaseListener } from './BaseListener.js';
 import { indexProduct } from '../elastic/productIndex.js';
 
 /**
- * Listener para eventos de productos creados
- * Indexa nuevos productos en Elasticsearch
+ * Listener para eventos de productos aprobados
+ * Indexa productos aprobados en Elasticsearch
  */
-class ProductCreatedListener extends BaseListener {
+class ProductApprovedListener extends BaseListener {
   constructor() {
-    super('product.created', 'ProductCreatedListener');
+    super('product.approved', 'ProductApprovedListener');
   }
 
   /**
-   * Maneja mensajes de producto creado
+   * Maneja mensajes de producto aprobado
    * @param {Object} messageData - Datos del mensaje recibido
    */
   async handleMessage(messageData) {
     // Limpiar datos para Elasticsearch
     const cleanProductData = this.cleanProductData(messageData);
 
-    // Indexar el nuevo producto en Elasticsearch
+    // Al aprobar un producto, lo indexamos en Elasticsearch
     await indexProduct(cleanProductData);
 
     console.log(
-      '✅ Producto indexado en Elasticsearch:',
+      '✅ Producto aprobado indexado en Elasticsearch:',
       cleanProductData.id || cleanProductData._id
     );
   }
 }
 
 // Función exportada para mantener compatibilidad con la implementación anterior
-export default async function productCreatedListener() {
-  const listener = new ProductCreatedListener();
+export default async function productApprovedListener() {
+  const listener = new ProductApprovedListener();
   await listener.start();
 }

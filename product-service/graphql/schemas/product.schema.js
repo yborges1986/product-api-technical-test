@@ -1,5 +1,15 @@
 // Schema de GraphQL para productos
 export const productSchema = `
+  # Enum para unidades de peso neto
+  enum NetWeightUnit {
+    g
+    kg
+    ml
+    l
+    oz
+    lb
+  }
+
   type Product {
     id: ID!
     gtin: String!
@@ -7,9 +17,11 @@ export const productSchema = `
     description: String!
     brand: String!
     manufacturer: String!
-    netWeight: String!
-    status: ProductStatus
-    createdBy: User
+    # Peso neto con valor numérico y unidad
+    netWeight: Float!
+    netWeightUnit: NetWeightUnit!
+    status: ProductStatus!
+    createdBy: User!
     approvedBy: User
     approvedAt: String
     createdAt: String!
@@ -22,7 +34,9 @@ export const productSchema = `
     description: String!
     brand: String!
     manufacturer: String!
-    netWeight: String!
+    # Peso neto requerido con unidad
+    netWeight: Float!
+    netWeightUnit: NetWeightUnit!
   }
 
   input UpdateProductInput {
@@ -30,6 +44,8 @@ export const productSchema = `
     description: String
     brand: String
     manufacturer: String
-    netWeight: String
+    # Campos opcionales para actualización
+    netWeight: Float
+    netWeightUnit: NetWeightUnit
   }
 `;

@@ -1,40 +1,73 @@
 import {
   createProduct,
   getProduct,
+  getProducts,
+  getProductsByStatus,
+  getPendingProducts,
   updateProduct,
   deleteProduct,
+  approveProduct,
 } from '../../services/product/index.js';
-import { Product } from '../../models/index.js';
 
 // Resolvers para productos
 export const productResolvers = {
   // Queries
-  products: async () => await Product.find(),
-  product: async ({ gtin }) => await getProduct(gtin),
-
-  // TODO: Implementar en Fase 2
-  productsByStatus: async ({ status }) => {
-    // Placeholder - implementar cuando tengamos el modelo actualizado
-    return await Product.find({ status });
+  products: async (args, context) => {
+    const { user } = context;
+    return await getProducts(user);
   },
 
-  // TODO: Implementar en Fase 2
+  product: async ({ gtin }, context) => {
+    const { user } = context;
+    return await getProduct(gtin, user);
+  },
+
+  productsByStatus: async ({ status }, context) => {
+    const { user } = context;
+    if (!user) {
+      throw new Error('Usuario no autenticado');
+    }
+    return await getProductsByStatus(status, user);
+  },
+
   pendingProducts: async (args, context) => {
-    // Verificar que sea editor o admin
-    // Placeholder - implementar cuando tengamos el modelo actualizado
-    return await Product.find({ status: 'pending' });
+    const { user } = context;
+    if (!user) {
+      throw new Error('Usuario no autenticado');
+    }
+    return await getPendingProducts(user);
   },
 
   // Mutations
-  createProduct: async ({ input }) => await createProduct(input),
-  updateProduct: async ({ gtin, input }) => await updateProduct(gtin, input),
-  deleteProduct: async ({ gtin }) => await deleteProduct(gtin),
+  createProduct: async ({ input }, context) => {
+    const { user } = context;
+    if (!user) {
+      throw new Error('Usuario no autenticado');
+    }
+    return await createProduct(input, user);
+  },
 
-  // TODO: Implementar en Fase 2
+  updateProduct: async ({ gtin, input }, context) => {
+    const { user } = context;
+    if (!user) {
+      throw new Error('Usuario no autenticado');
+    }
+    return await updateProduct(gtin, input, user);
+  },
+
+  deleteProduct: async ({ gtin }, context) => {
+    const { user } = context;
+    if (!user) {
+      throw new Error('Usuario no autenticado');
+    }
+    return await deleteProduct(gtin);
+  },
+
   approveProduct: async ({ gtin }, context) => {
-    // Verificar que sea editor o admin
-    // Cambiar status de pending a published
-    // Placeholder - implementar cuando tengamos el modelo actualizado
-    throw new Error('approveProduct no implementado aún');
+    const { user } = context;
+    if (!user) {
+      throw new Error('Usuario no autenticado');
+    }
+    return await approveProduct(gtin, user);
   },
 };
