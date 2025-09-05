@@ -4,10 +4,12 @@ import express from 'express';
 import { graphqlHTTP } from 'express-graphql';
 import { buildSchema } from 'graphql';
 import {
+  connectTestDatabase,
+  cleanTestDatabase,
+  disconnectTestDatabase,
   createTestUsers,
-  TEST_USERS,
   generateTestGTIN,
-} from '../setup/helpers.js';
+} from '../setup/testCleanup.js';
 import { schema, resolvers } from '../../graphql/product.graphql.js';
 import {
   authMiddleware,
@@ -39,39 +41,48 @@ describe('Product History and Audit Tests', () => {
   let users;
   let tokens = {};
 
+  // Configuración de la base de datos
+  beforeAll(async () => {
+    await connectTestDatabase();
+  });
+
+  afterAll(async () => {
+    await disconnectTestDatabase();
+  });
+
   beforeEach(async () => {
+    await cleanTestDatabase();
+
     app = createTestApp();
     request = supertest(app);
     users = await createTestUsers();
 
-    // Obtener tokens para cada usuario
+    // Obtener tokens para cada usuario - usando el formato nuevo de GraphQL
     const getToken = async (email, password) => {
       const loginMutation = `
-        mutation {
-          login(email: "${email}", password: "${password}") {
+        mutation($input: LoginInput!) {
+          login(input: $input) {
             token
           }
         }
       `;
 
+      const variables = {
+        input: { email, password },
+      };
+
       const response = await request
         .post('/graphql')
-        .send({ query: loginMutation });
+        .send({ query: loginMutation, variables });
 
       return response.body.data.login.token;
     };
 
-    tokens.admin = await getToken(
-      TEST_USERS.admin.email,
-      TEST_USERS.admin.password
-    );
-    tokens.editor = await getToken(
-      TEST_USERS.editor.email,
-      TEST_USERS.editor.password
-    );
+    tokens.admin = await getToken(users.admin.email, users.admin.password);
+    tokens.editor = await getToken(users.editor.email, users.editor.password);
     tokens.provider = await getToken(
-      TEST_USERS.provider.email,
-      TEST_USERS.provider.password
+      users.provider.email,
+      users.provider.password
     );
   });
 

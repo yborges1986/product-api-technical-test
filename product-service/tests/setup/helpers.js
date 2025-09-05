@@ -4,6 +4,7 @@ import { calculateCheckDigit } from '../../utils/gtin.util.js';
 
 /**
  * Usuarios de prueba para testing
+ * Los emails se hacen únicos dinámicamente para evitar conflictos
  */
 export const TEST_USERS = {
   admin: {
@@ -29,17 +30,39 @@ export const TEST_USERS = {
   },
 };
 
+// Variable global para mantener los emails únicos de la sesión actual
+let currentTestUsers = null;
+
 /**
  * Crear usuarios de prueba en la base de datos
  */
 export async function createTestUsers() {
   const users = {};
+  const timestamp = Date.now();
 
-  for (const [key, userData] of Object.entries(TEST_USERS)) {
+  // Crear emails únicos para esta sesión de tests
+  currentTestUsers = {
+    admin: { ...TEST_USERS.admin, email: `test-admin-${timestamp}@test.com` },
+    editor: {
+      ...TEST_USERS.editor,
+      email: `test-editor-${timestamp}@test.com`,
+    },
+    provider: {
+      ...TEST_USERS.provider,
+      email: `test-provider-${timestamp}@test.com`,
+    },
+  };
+
+  for (const [key, userData] of Object.entries(currentTestUsers)) {
     const user = new User(userData);
     await user.save();
     users[key] = user;
   }
+
+  // Actualizar TEST_USERS con los emails únicos para que funcione en templates
+  TEST_USERS.admin.email = currentTestUsers.admin.email;
+  TEST_USERS.editor.email = currentTestUsers.editor.email;
+  TEST_USERS.provider.email = currentTestUsers.provider.email;
 
   return users;
 }

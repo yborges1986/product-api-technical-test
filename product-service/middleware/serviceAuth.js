@@ -28,9 +28,8 @@ export function serviceLogger(req, res, next) {
   const serviceOrigin = req.headers['x-service-origin'] || 'unknown';
   const serviceVersion = req.headers['x-service-version'] || 'unknown';
 
-  console.log(
-    `[SERVICE-TO-SERVICE] ${serviceOrigin}@${serviceVersion} -> ${req.method} ${req.path}`
-  );
+  // Log service-to-service communication for monitoring
+  // console.log(`[SERVICE-TO-SERVICE] ${serviceOrigin}@${serviceVersion} -> ${req.method} ${req.path}`);
 
   next();
 }

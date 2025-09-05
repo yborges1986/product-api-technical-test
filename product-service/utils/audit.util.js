@@ -184,11 +184,6 @@ export const getProductHistory = async (gtin, options = {}) => {
       return jsonDoc;
     });
 
-    console.log(
-      '✅ [DEBUG] Transformed history entries:',
-      transformedHistory.length
-    );
-
     return transformedHistory;
   } catch (error) {
     console.error('❌ Error fetching product history:', error);

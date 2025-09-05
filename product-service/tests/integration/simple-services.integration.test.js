@@ -311,19 +311,27 @@ describe('Simple Service Integration Tests', () => {
         return;
       }
 
-      // Verificar que las contraseñas están hasheadas
-      expect(testUsers.admin.password).not.toBe('admin123');
-      expect(testUsers.editor.password).not.toBe('editor123');
-      expect(testUsers.provider.password).not.toBe('provider123');
+      // Verificar que se pueden obtener usuarios desde la BD con contraseñas hasheadas
+      const adminFromDB = await User.findById(testUsers.admin._id).select(
+        '+password'
+      );
+      const editorFromDB = await User.findById(testUsers.editor._id).select(
+        '+password'
+      );
+      const providerFromDB = await User.findById(testUsers.provider._id).select(
+        '+password'
+      );
 
-      // Verificar que la comparación funciona
-      const isAdminPasswordValid = await testUsers.admin.comparePassword(
+      expect(adminFromDB.password).not.toBe('admin123');
+      expect(editorFromDB.password).not.toBe('editor123');
+      expect(providerFromDB.password).not.toBe('provider123'); // Verificar que la comparación funciona
+      const isAdminPasswordValid = await adminFromDB.comparePassword(
         'admin123'
       );
-      const isEditorPasswordValid = await testUsers.editor.comparePassword(
+      const isEditorPasswordValid = await editorFromDB.comparePassword(
         'editor123'
       );
-      const isProviderPasswordValid = await testUsers.provider.comparePassword(
+      const isProviderPasswordValid = await providerFromDB.comparePassword(
         'provider123'
       );
 
