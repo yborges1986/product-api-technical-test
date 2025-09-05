@@ -20,6 +20,7 @@ import {
 
 // Importar seeds
 import { initializeUsers } from './seeds/users.seed.js';
+import { initializeSampleProducts } from './seeds/products.seed.js';
 
 // Usar schemas y resolvers modulares
 const mergedSchema = buildSchema(schema);
@@ -88,6 +89,11 @@ connectDB()
     logger.info('Conectado a MongoDB');
     // Inicializar usuarios del sistema
     await initializeUsers();
+
+    // Inicializar productos de ejemplo (solo en desarrollo)
+    if (process.env.NODE_ENV === 'development') {
+      await initializeSampleProducts();
+    }
   })
   .catch((err) => logger.error('Error conectando a MongoDB:', err));
 
