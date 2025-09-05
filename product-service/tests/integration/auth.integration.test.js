@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+  afterAll,
+} from '@jest/globals';
 import supertest from 'supertest';
 import express from 'express';
 import { graphqlHTTP } from 'express-graphql';
@@ -9,6 +16,12 @@ import {
   authMiddleware,
   createGraphQLContext,
 } from '../../middleware/auth.middleware.js';
+import {
+  cleanTestDatabase,
+  connectTestDatabase,
+  disconnectTestDatabase,
+} from '../setup/testCleanup.js';
+import mongoose from 'mongoose';
 
 // Crear app de prueba
 const createTestApp = () => {

@@ -10,56 +10,39 @@ import mongoose from 'mongoose';
 import User from '../../models/user.model.js';
 import { Product } from '../../models/index.js';
 import { calculateCheckDigit } from '../../utils/gtin.util.js';
+import {
+  cleanTestDatabase,
+  connectTestDatabase,
+  disconnectTestDatabase,
+} from '../setup/testCleanup.js';
 
-// Test de integración simple sin GraphQL para verificar la lógica de negocio
+// Tests de integración para reglas de negocio
 describe('Business Logic Integration Tests', () => {
+  let testCounter = 0;
+
+  // Helper para generar emails únicos
+  const getUniqueEmail = (role) =>
+    `${role}-${Date.now()}-${++testCounter}@test.com`;
+
   beforeAll(async () => {
-    // Usar base de datos de test temporal en memoria o local
-    const testDbUri =
-      process.env.MONGODB_TEST_URI ||
-      'mongodb://localhost:27017/treew_test_simple';
-
-    try {
-      if (mongoose.connection.readyState !== 0) {
-        await mongoose.disconnect();
-      }
-
-      await mongoose.connect(testDbUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      });
-
-      console.log('🧪 Connected to test database');
-    } catch (error) {
-      console.warn('⚠️ Could not connect to test database, skipping tests');
-      // Skip tests if no database available
-      return;
+    const connected = await connectTestDatabase();
+    if (!connected) {
+      console.warn('⚠️ Skipping business logic tests - no database connection');
     }
   });
 
   afterAll(async () => {
-    try {
-      // Clean up and disconnect
-      const collections = mongoose.connection.collections;
-      for (const key in collections) {
-        await collections[key].deleteMany({});
-      }
-      await mongoose.disconnect();
-    } catch (error) {
-      // Ignore cleanup errors
-    }
+    await cleanTestDatabase();
+    await disconnectTestDatabase();
   });
 
   beforeEach(async () => {
     // Clean collections before each test
-    try {
-      const collections = mongoose.connection.collections;
-      for (const key in collections) {
-        await collections[key].deleteMany({});
-      }
-    } catch (error) {
-      // Skip if no connection
+    if (mongoose.connection.readyState !== 1) {
+      return; // Skip if no connection
     }
+
+    await cleanTestDatabase();
   });
 
   describe('User Model', () => {
@@ -71,7 +54,7 @@ describe('Business Logic Integration Tests', () => {
 
       const adminUser = new User({
         name: 'Test Admin',
-        email: 'admin@test.com',
+        email: getUniqueEmail('admin'),
         password: 'admin123',
         role: 'admin',
         isActive: true,
@@ -79,11 +62,11 @@ describe('Business Logic Integration Tests', () => {
 
       const savedAdmin = await adminUser.save();
       expect(savedAdmin.role).toBe('admin');
-      expect(savedAdmin.email).toBe('admin@test.com');
+      expect(savedAdmin.email).toBe(adminUser.email);
 
       const providerUser = new User({
         name: 'Test Provider',
-        email: 'provider@test.com',
+        email: getUniqueEmail('provider'),
         password: 'provider123',
         role: 'provider',
         isActive: true,
@@ -105,7 +88,7 @@ describe('Business Logic Integration Tests', () => {
       // Create test users
       const admin = new User({
         name: 'Admin',
-        email: 'admin@test.com',
+        email: getUniqueEmail('admin'),
         password: 'admin123',
         role: 'admin',
         isActive: true,
@@ -113,7 +96,7 @@ describe('Business Logic Integration Tests', () => {
 
       const provider = new User({
         name: 'Provider',
-        email: 'provider@test.com',
+        email: getUniqueEmail('provider'),
         password: 'provider123',
         role: 'provider',
         isActive: true,
@@ -205,7 +188,7 @@ describe('Business Logic Integration Tests', () => {
       // Create test users
       const admin = new User({
         name: 'Admin',
-        email: 'admin@test.com',
+        email: getUniqueEmail('admin'),
         password: 'admin123',
         role: 'admin',
         isActive: true,
@@ -213,7 +196,7 @@ describe('Business Logic Integration Tests', () => {
 
       const provider = new User({
         name: 'Provider',
-        email: 'provider@test.com',
+        email: getUniqueEmail('provider'),
         password: 'provider123',
         role: 'provider',
         isActive: true,

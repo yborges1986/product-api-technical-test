@@ -5,30 +5,29 @@ import {
   beforeAll,
   beforeEach,
   afterAll,
+  afterEach,
 } from '@jest/globals';
 import login from '../../services/auth/login.js';
 import User from '../../models/user.model.js';
 import { Product } from '../../models/index.js';
 import { calculateCheckDigit } from '../../utils/gtin.util.js';
 import mongoose from 'mongoose';
+import {
+  cleanTestDatabase,
+  connectTestDatabase,
+  disconnectTestDatabase,
+  createTestUsers,
+} from '../setup/testCleanup.js';
 
 describe('Simple Service Integration Tests', () => {
   let testUsers = {};
 
   beforeAll(async () => {
-    if (mongoose.connection.readyState !== 1) {
-      const testDbUri =
-        process.env.MONGODB_TEST_URI ||
-        'mongodb://localhost:27017/treew_test_simple';
-      try {
-        await mongoose.connect(testDbUri);
-        console.log('🧪 Connected to simple services test database');
-      } catch (error) {
-        console.warn(
-          '⚠️ Could not connect to database, skipping service tests'
-        );
-        return;
-      }
+    const connected = await connectTestDatabase();
+    if (!connected) {
+      console.warn(
+        '⚠️ Skipping simple services tests - no database connection'
+      );
     }
   });
 
@@ -37,50 +36,16 @@ describe('Simple Service Integration Tests', () => {
       return;
     }
 
-    // Limpiar datos
-    await User.deleteMany({});
-    await Product.deleteMany({});
+    // Limpiar datos antes de cada test
+    await cleanTestDatabase();
 
-    // Crear usuarios de test (sin usar el servicio, directo con modelo)
-    const admin = new User({
-      name: 'Test Admin',
-      email: 'admin@test.com',
-      password: 'admin123',
-      role: 'admin',
-      isActive: true,
-    });
-
-    const editor = new User({
-      name: 'Test Editor',
-      email: 'editor@test.com',
-      password: 'editor123',
-      role: 'editor',
-      isActive: true,
-    });
-
-    const provider = new User({
-      name: 'Test Provider',
-      email: 'provider@test.com',
-      password: 'provider123',
-      role: 'provider',
-      isActive: true,
-    });
-
-    testUsers.admin = await admin.save();
-    testUsers.editor = await editor.save();
-    testUsers.provider = await provider.save();
+    // Crear usuarios de test únicos para este test
+    testUsers = await createTestUsers();
   });
 
   afterAll(async () => {
-    try {
-      if (mongoose.connection.readyState === 1) {
-        await User.deleteMany({});
-        await Product.deleteMany({});
-        await mongoose.disconnect();
-      }
-    } catch (error) {
-      // Ignore cleanup errors
-    }
+    await cleanTestDatabase();
+    await disconnectTestDatabase();
   });
 
   describe('Authentication Service', () => {
@@ -90,11 +55,11 @@ describe('Simple Service Integration Tests', () => {
         return;
       }
 
-      const result = await login('admin@test.com', 'admin123');
+      const result = await login(testUsers.adminEmail, 'admin123');
 
       expect(result).toBeTruthy();
       expect(result.token).toBeTruthy();
-      expect(result.user.email).toBe('admin@test.com');
+      expect(result.user.email).toBe(testUsers.adminEmail);
       expect(result.user.role).toBe('admin');
     });
 
@@ -104,7 +69,9 @@ describe('Simple Service Integration Tests', () => {
         return;
       }
 
-      await expect(login('admin@test.com', 'wrongpassword')).rejects.toThrow();
+      await expect(
+        login(testUsers.adminEmail, 'wrongpassword')
+      ).rejects.toThrow();
     });
 
     it('should reject login for inactive user', async () => {
@@ -114,9 +81,12 @@ describe('Simple Service Integration Tests', () => {
       }
 
       // Desactivar usuario
-      await User.updateOne({ email: 'admin@test.com' }, { isActive: false });
+      await User.updateOne(
+        { email: testUsers.adminEmail },
+        { isActive: false }
+      );
 
-      await expect(login('admin@test.com', 'admin123')).rejects.toThrow(
+      await expect(login(testUsers.adminEmail, 'admin123')).rejects.toThrow(
         'Usuario desactivado'
       );
     });

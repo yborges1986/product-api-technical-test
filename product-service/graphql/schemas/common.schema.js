@@ -52,8 +52,8 @@ export const commonSchema = `
     deleteProduct(gtin: String!): String!
     approveProduct(gtin: String!): Product!
 
-    login(email: String!, password: String!): AuthPayload!
-    changePassword(currentPassword: String!, newPassword: String!): String!
+    login(input: LoginInput!): AuthPayload!
+    changePassword(input: ChangePasswordInput!): String!
     updateProfile(input: UpdateProfileInput!): User!
     
     createUser(input: CreateUserInput!): User!

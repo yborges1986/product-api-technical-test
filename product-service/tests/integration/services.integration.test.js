@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+} from '@jest/globals';
 import login from '../../services/auth/login.js';
 import createProduct from '../../services/product/createProduct.js';
 import approveProduct from '../../services/product/approveProduct.js';
@@ -7,26 +15,21 @@ import User from '../../models/user.model.js';
 import { Product } from '../../models/index.js';
 import { calculateCheckDigit } from '../../utils/gtin.util.js';
 import mongoose from 'mongoose';
+import {
+  cleanTestDatabase,
+  connectTestDatabase,
+  disconnectTestDatabase,
+  createTestUsers,
+} from '../setup/testCleanup.js';
 
 // Tests de servicios (más simples que GraphQL completo)
 describe('Service Layer Integration Tests', () => {
   let testUsers = {};
 
   beforeAll(async () => {
-    // Conectar a base de datos de test si no está conectado
-    if (mongoose.connection.readyState !== 1) {
-      const testDbUri =
-        process.env.MONGODB_TEST_URI ||
-        'mongodb://localhost:27017/treew_test_services';
-      try {
-        await mongoose.connect(testDbUri);
-        console.log('🧪 Connected to services test database');
-      } catch (error) {
-        console.warn(
-          '⚠️ Could not connect to database, skipping service tests'
-        );
-        return;
-      }
+    const connected = await connectTestDatabase();
+    if (!connected) {
+      console.warn('⚠️ Skipping service tests - no database connection');
     }
   });
 
@@ -35,50 +38,16 @@ describe('Service Layer Integration Tests', () => {
       return; // Skip if no connection
     }
 
-    // Limpiar datos
-    await User.deleteMany({});
-    await Product.deleteMany({});
+    // Limpiar datos antes de cada test
+    await cleanTestDatabase();
 
-    // Crear usuarios de test
-    const admin = new User({
-      name: 'Test Admin',
-      email: 'admin@test.com',
-      password: 'admin123',
-      role: 'admin',
-      isActive: true,
-    });
-
-    const editor = new User({
-      name: 'Test Editor',
-      email: 'editor@test.com',
-      password: 'editor123',
-      role: 'editor',
-      isActive: true,
-    });
-
-    const provider = new User({
-      name: 'Test Provider',
-      email: 'provider@test.com',
-      password: 'provider123',
-      role: 'provider',
-      isActive: true,
-    });
-
-    testUsers.admin = await admin.save();
-    testUsers.editor = await editor.save();
-    testUsers.provider = await provider.save();
+    // Crear usuarios de test únicos para este test
+    testUsers = await createTestUsers();
   });
 
   afterAll(async () => {
-    try {
-      if (mongoose.connection.readyState === 1) {
-        await User.deleteMany({});
-        await Product.deleteMany({});
-        await mongoose.disconnect();
-      }
-    } catch (error) {
-      // Ignore cleanup errors
-    }
+    await cleanTestDatabase();
+    await disconnectTestDatabase();
   });
 
   describe('Authentication Service', () => {
@@ -88,11 +57,11 @@ describe('Service Layer Integration Tests', () => {
         return;
       }
 
-      const result = await login('admin@test.com', 'admin123');
+      const result = await login(testUsers.adminEmail, 'admin123');
 
       expect(result).toBeTruthy();
       expect(result.token).toBeTruthy();
-      expect(result.user.email).toBe('admin@test.com');
+      expect(result.user.email).toBe(testUsers.adminEmail);
       expect(result.user.role).toBe('admin');
     });
 
@@ -102,7 +71,9 @@ describe('Service Layer Integration Tests', () => {
         return;
       }
 
-      await expect(login('admin@test.com', 'wrongpassword')).rejects.toThrow();
+      await expect(
+        login(testUsers.adminEmail, 'wrongpassword')
+      ).rejects.toThrow();
     });
   });
 
@@ -131,7 +102,8 @@ describe('Service Layer Integration Tests', () => {
 
       expect(result.status).toBe('pending');
       expect(result.gtin).toBe(validGTIN);
-      expect(result.createdBy.toString()).toBe(
+      // El servicio devuelve el objeto usuario completo, no solo el ID
+      expect(result.createdBy.id || result.createdBy._id.toString()).toBe(
         testUsers.provider._id.toString()
       );
     });
@@ -159,7 +131,10 @@ describe('Service Layer Integration Tests', () => {
       const result = await createProduct(productData, testUsers.admin);
 
       expect(result.status).toBe('published');
-      expect(result.approvedBy.toString()).toBe(testUsers.admin._id.toString());
+      // El servicio devuelve el objeto usuario completo, no solo el ID
+      expect(result.approvedBy.id || result.approvedBy._id.toString()).toBe(
+        testUsers.admin._id.toString()
+      );
     });
   });
 
@@ -198,7 +173,8 @@ describe('Service Layer Integration Tests', () => {
       const result = await approveProduct(pendingProductGTIN, testUsers.editor);
 
       expect(result.status).toBe('published');
-      expect(result.approvedBy.toString()).toBe(
+      // El servicio devuelve el objeto usuario completo, no solo el ID
+      expect(result.approvedBy.id || result.approvedBy._id.toString()).toBe(
         testUsers.editor._id.toString()
       );
       expect(result.approvedAt).toBeTruthy();
@@ -217,12 +193,13 @@ describe('Service Layer Integration Tests', () => {
   });
 
   describe('Product Service - Visibility', () => {
-    beforeEach(async () => {
+    it('should allow admin to see all products', async () => {
       if (mongoose.connection.readyState !== 1) {
+        console.log('Skipping test - no database connection');
         return;
       }
 
-      // Crear productos de diferentes usuarios
+      // Crear productos de diferentes usuarios para este test
       const providerGTIN = '111222333444' + calculateCheckDigit('111222333444');
       const editorGTIN = '444555666777' + calculateCheckDigit('444555666777');
 
@@ -251,13 +228,6 @@ describe('Service Layer Integration Tests', () => {
         },
         testUsers.editor
       );
-    });
-
-    it('should allow admin to see all products', async () => {
-      if (mongoose.connection.readyState !== 1) {
-        console.log('Skipping test - no database connection');
-        return;
-      }
 
       const products = await getProducts(testUsers.admin);
 
@@ -274,15 +244,57 @@ describe('Service Layer Integration Tests', () => {
         return;
       }
 
-      const products = await getProducts(testUsers.provider);
+      // Crear productos de diferentes usuarios para este test
+      const providerGTIN = '111222333444' + calculateCheckDigit('111222333444');
+      const editorGTIN = '444555666777' + calculateCheckDigit('444555666777');
 
-      // Provider should only see their own products
-      const providerProducts = products.filter(
-        (p) => p.createdBy.toString() === testUsers.provider._id.toString()
+      await createProduct(
+        {
+          gtin: providerGTIN,
+          name: 'Provider Product',
+          description: 'Provider Description',
+          brand: 'Provider Brand',
+          manufacturer: 'Provider Manufacturer',
+          netWeight: 100,
+          netWeightUnit: 'g',
+        },
+        testUsers.provider
       );
 
-      expect(providerProducts.length).toBe(1);
-      expect(providerProducts[0].name).toBe('Provider Product');
+      await createProduct(
+        {
+          gtin: editorGTIN,
+          name: 'Editor Product',
+          description: 'Editor Description',
+          brand: 'Editor Brand',
+          manufacturer: 'Editor Manufacturer',
+          netWeight: 200,
+          netWeightUnit: 'g',
+        },
+        testUsers.editor
+      );
+
+      const products = await getProducts(testUsers.provider);
+
+      // Provider should see:
+      // 1. Their own products (both pending and published)
+      // 2. Published products from other users
+      // In this case: 1 pending (provider) + 1 published (editor) = 2 products
+      expect(products.length).toBe(2);
+
+      // Verify the provider can see their own pending product
+      const providerProduct = products.find(
+        (p) => p.name === 'Provider Product'
+      );
+      expect(providerProduct).toBeTruthy();
+      expect(providerProduct.status).toBe('pending');
+
+      // Verify the provider can see the published product from editor
+      const publishedProduct = products.find(
+        (p) => p.name === 'Editor Product'
+      );
+      expect(publishedProduct).toBeTruthy();
+      expect(publishedProduct.status).toBe('published');
     });
   });
 
