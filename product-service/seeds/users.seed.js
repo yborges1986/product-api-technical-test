@@ -1,17 +1,9 @@
 import User from '../models/user.model.js';
 
 /**
- * Datos del usuario administrexport const initializeUsers = async () => {
-  try {
-    await createAdminUser();
-
-    if (process.env.NODE_ENV === 'development') {
-      await createTestUsers();
-    }
-  } catch (error) {
-    console.error('❌ Error en inicialización de usuarios:', error.message);
-  }
-};onst ADMIN_USER_DATA = {
+ * Datos del usuario administrador
+ */
+const ADMIN_USER_DATA = {
   name: 'Administrador Principal',
   email: 'admin@treew.com',
   password: 'admin1234',

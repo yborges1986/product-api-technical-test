@@ -7,7 +7,13 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern=integration",
+    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPattern=unit",
+    "test:business": "NODE_OPTIONS='--experimental-vm-modules' jest tests/integration/business-logic.integration.test.js",
+    "test:services": "NODE_OPTIONS='--experimental-vm-modules' jest tests/integration/services.integration.test.js",
     "build": "echo \"Build completed\"",
     "health": "curl -f http://localhost:${PORT:-3000}/health || exit 1"
   },
@@ -34,5 +40,11 @@
     "nodemon": "^3.1.10",
     "validator": "^13.15.15",
     "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "@babel/preset-env": "^7.23.2",
+    "babel-jest": "^29.7.0"
   }
 }
