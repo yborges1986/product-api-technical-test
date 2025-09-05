@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
 import { recordAuditEntry } from '../utils/audit.util.js';
+import {
+  isValidGTIN,
+  getGTINValidationError,
+  formatGTIN,
+} from '../utils/gtin.util.js';
 
 const productSchema = new mongoose.Schema(
   {
@@ -8,6 +13,18 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      validate: {
+        validator: function (value) {
+          return isValidGTIN(value);
+        },
+        message: function (props) {
+          return getGTINValidationError(props.value);
+        },
+      },
+      set: function (value) {
+        // Normalizar el GTIN al guardarlo (eliminar espacios, guiones, etc.)
+        return formatGTIN(value);
+      },
     },
     name: {
       type: String,

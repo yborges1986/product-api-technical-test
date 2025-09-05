@@ -51,7 +51,9 @@ Sistema completo de microservicios para gestión de productos con autenticación
 - ✅ **CRUD Completo**: Crear, leer, actualizar y eliminar productos
 - ✅ **Estados de Producto**: `pending` y `published` con flujo de aprobación
 - ✅ **Control por Rol**: Providers crean productos pendientes, Editors/Admins aprueban
-- ✅ **Validación GS1**: GTIN, peso neto con unidades, información completa
+- ✅ **Validación GS1 Completa**: GTINs validados según estándar GS1 con dígito verificador
+- ✅ **Normalización Automática**: GTINs se normalizan eliminando espacios y caracteres especiales
+- ✅ **Soporte Multi-formato**: GTIN-8, GTIN-12, GTIN-13 y GTIN-14
 - ✅ **Comunicación Asíncrona**: Eventos vía NATS para sincronización
 
 ### 📊 Auditoría y Trazabilidad
@@ -615,6 +617,70 @@ curl http://localhost:8222/varz
 
 ## 🧪 Testing y Ejemplos
 
+### 🔢 Generador de GTINs de Prueba
+
+Para facilitar el testing, el proyecto incluye un generador de GTINs válidos según el estándar GS1:
+
+```bash
+# Generar GTINs válidos de prueba
+node generate-test-gtins.js
+
+# Este comando generará:
+# - GTIN-8: Para productos pequeños (revistas, cupones)
+# - GTIN-13: Para productos estándar (EAN-13)
+# - GTIN-14: Para cajas/paquetes comerciales
+# - Comandos curl listos para usar
+```
+
+**Salida esperada**:
+
+```
+🔢 GENERADOR DE GTINs VÁLIDOS PARA PRUEBAS
+==========================================
+
+📋 GTINs GENERADOS PARA PRUEBAS:
+=================================
+
+1. GTIN-8: 98770199
+   Descripción: GTIN-8 para productos pequeños
+   Estado: ✅ VÁLIDO
+   Tipo detectado: GTIN-8
+
+2. GTIN-13: 7894789437484
+   Descripción: GTIN-13 (EAN-13) estándar
+   Estado: ✅ VÁLIDO
+   Tipo detectado: GTIN-13 (EAN-13)
+
+3. GTIN-14: 45683565393263
+   Descripción: GTIN-14 para cajas/paquetes
+   Estado: ✅ VÁLIDO
+   Tipo detectado: GTIN-14
+```
+
+### 🎯 Validación GS1 Implementada
+
+El sistema incluye validación completa del estándar GS1:
+
+- **✅ Algoritmo de dígito verificador**: Implementación exacta según GS1
+- **✅ Soporte multi-formato**: GTIN-8, GTIN-12, GTIN-13, GTIN-14
+- **✅ Normalización automática**: Elimina espacios, guiones y caracteres especiales
+- **✅ Mensajes descriptivos**: Errores claros para GTINs inválidos
+- **✅ Validación en tiempo real**: Se valida al crear/actualizar productos
+
+**Ejemplos de uso**:
+
+```bash
+# GTIN válido - se acepta
+"12345670"        # ✅ GTIN-8 válido
+"1234-5670"       # ✅ Se normaliza a "12345670"
+"1234 5670"       # ✅ Se normaliza a "12345670"
+
+# GTIN inválido - se rechaza
+"12345671"        # ❌ Dígito verificador incorrecto
+"123456"          # ❌ Longitud incorrecta
+"1234567A"        # ❌ Contiene caracteres no numéricos
+```
+
 ### Testing con curl
 
 **Autenticación**:
@@ -631,12 +697,47 @@ curl -X POST "http://localhost:3000/graphql" \
 **Crear producto** (requiere token):
 
 ```bash
+# Con GTIN válido generado
 curl -X POST "http://localhost:3000/graphql" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{
-    "query": "mutation { createProduct(input: { gtin: \"123456789\", name: \"Test Product\", description: \"Test\", brand: \"Test Brand\", manufacturer: \"Test Mfg\", netWeight: 100, netWeightUnit: g }) { id gtin name status createdBy { name role } } }"
+    "query": "mutation { createProduct(input: { gtin: \"98770199\", name: \"Test Product\", description: \"Test\", brand: \"Test Brand\", manufacturer: \"Test Mfg\", netWeight: 100, netWeightUnit: g }) { id gtin name status createdBy { name role } } }"
   }'
+
+# Respuesta esperada:
+{
+  "data": {
+    "createProduct": {
+      "id": "...",
+      "gtin": "98770199",
+      "name": "Test Product",
+      "status": "pending",
+      "createdBy": {
+        "name": "Provider User",
+        "role": "provider"
+      }
+    }
+  }
+}
+```
+
+**Ejemplo con GTIN inválido** (será rechazado):
+
+```bash
+curl -X POST "http://localhost:3000/graphql" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "query": "mutation { createProduct(input: { gtin: \"12345671\", name: \"Invalid Product\", description: \"Test\", brand: \"Test Brand\", manufacturer: \"Test Mfg\", netWeight: 100, netWeightUnit: g }) { id gtin name } }"
+  }'
+
+# Respuesta con error:
+{
+  "errors": [{
+    "message": "Product validation failed: gtin: GTIN inválido: \"12345671\". Dígito verificador inválido según estándar GS1. El GTIN debe cumplir con el estándar GS1 (8, 12, 13 o 14 dígitos con dígito verificador correcto)."
+  }]
+}
 ```
 
 **Buscar producto**:
@@ -692,6 +793,7 @@ treew-tecnical-test/
 ├── README.md                           # Esta documentación
 ├── ROADMAP.md                          # Plan de desarrollo y progreso
 ├── test-system.sh                      # Script de testing automatizado
+├── generate-test-gtins.js              # 🔢 Generador de GTINs válidos GS1
 │
 ├── product-service/                    # 🎯 Microservicio Principal
 │   ├── Dockerfile                      # Imagen Docker del servicio
@@ -710,7 +812,7 @@ treew-tecnical-test/
 │   ├── models/                         # 📄 Modelos de Datos
 │   │   ├── index.js                    # Exportación de modelos
 │   │   ├── user.model.js               # Modelo de usuarios con roles
-│   │   ├── product.model.js            # Modelo de productos GS1
+│   │   ├── product.model.js            # Modelo de productos con validación GS1
 │   │   └── productHistory.model.js     # Modelo de auditoría
 │   │
 │   ├── services/                       # 🧠 Lógica de Negocio
@@ -753,7 +855,8 @@ treew-tecnical-test/
 │   │   ├── jwt.util.js                 # Manejo de tokens JWT
 │   │   ├── password.util.js            # Encriptación de contraseñas
 │   │   ├── permissions.util.js         # Control de permisos por rol
-│   │   └── audit.util.js               # Utilidades de auditoría
+│   │   ├── audit.util.js               # Utilidades de auditoría
+│   │   └── gtin.util.js                # 🎯 Validación GS1 completa
 │   │
 │   └── seeds/                          # 🌱 Datos Iniciales
 │       └── users.seed.js               # Usuarios de prueba
@@ -974,6 +1077,14 @@ docker compose restart product-service
   - Query de auditoría independiente
   - Filtros avanzados (nombre, acción, usuario, fechas)
   - Paginación y búsqueda flexible
+
+- **✅ Validación GS1 Completa**
+
+  - Algoritmo de dígito verificador según estándar GS1
+  - Soporte para GTIN-8, GTIN-12, GTIN-13 y GTIN-14
+  - Normalización automática de formatos
+  - Mensajes de error descriptivos
+  - Generador de GTINs válidos para pruebas
 
 - **✅ Búsqueda Avanzada**
   - Integración con Elasticsearch
