@@ -1,0 +1,34 @@
+{
+  "name": "treew-technical-test",
+  "version": "1.0.0",
+  "description": "Sistema de microservicios para gestión de productos",
+  "scripts": {
+    "start": "docker compose up -d",
+    "stop": "docker compose down",
+    "logs": "docker compose logs -f",
+    "restart": "docker compose restart",
+    "dev:product": "cd product-service && npm run dev",
+    "dev:search": "cd search-service && npm run dev",
+    "install:all": "npm install && cd product-service && npm install && cd ../search-service && npm install",
+    "build": "docker compose build",
+    "health": "curl http://localhost:3000/health && curl http://localhost:4002/health",
+    "test:create": "curl -X POST http://localhost:3000/graphql -H 'Content-Type: application/json' -d '{\"query\":\"mutation { createProduct(input: { gtin: \\\"1234567890123\\\", name: \\\"Producto Test\\\", description: \\\"Descripción del producto test\\\", brand: \\\"Marca Test\\\", manufacturer: \\\"Fabricante Test\\\", netWeight: \\\"500g\\\" }) { id gtin name } }\"}'",
+    "test:search": "curl 'http://localhost:4002/search-elastic?q=test'",
+    "test:system": "./test-system.sh",
+    "infrastructure": "docker compose up -d mongo elasticsearch nats"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^7.17.0",
+    "nats": "^2.29.3"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "microservices",
+    "graphql",
+    "elasticsearch",
+    "nats",
+    "mongodb"
+  ],
+  "author": "Treew Technical Test",
+  "license": "MIT"
+}

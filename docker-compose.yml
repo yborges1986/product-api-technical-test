@@ -1,0 +1,92 @@
+services:
+  # MongoDB
+  mongo:
+    image: mongo:7.0
+    container_name: treew-mongo
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_DATABASE: product_management
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - treew-network
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: treew-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
+      - xpack.security.enabled=false
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - treew-network
+
+  # NATS
+  nats:
+    image: nats:2.9-alpine
+    container_name: treew-nats
+    ports:
+      - '4222:4222'
+      - '8222:8222' # Monitoring
+    command: ['-js', '-m', '8222']
+    networks:
+      - treew-network
+
+  # Product Service
+  product-service:
+    build: ./product-service
+    container_name: treew-product-service
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongo:27017/product_management
+      - NODE_ENV=development
+      - NATS_URL=nats://nats:4222
+      - SERVICE_TOKEN=treew-internal-secret-2024
+      - JWT_SECRET=treew-super-secret-jwt-key-2024
+      - JWT_EXPIRES_IN=24h
+      - BCRYPT_ROUNDS=12
+    depends_on:
+      - mongo
+      - nats
+    volumes:
+      - ./product-service:/app
+      - /app/node_modules
+    networks:
+      - treew-network
+
+  # Search Service
+  search-service:
+    build: ./search-service
+    container_name: treew-search-service
+    ports:
+      - '4002:4002'
+    environment:
+      - PORT=4002
+      - NODE_ENV=production
+      - NATS_URL=nats://nats:4222
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+      - nats
+    volumes:
+      - ./search-service:/app
+      - /app/node_modules
+    networks:
+      - treew-network
+
+volumes:
+  mongo_data:
+  elasticsearch_data:
+
+networks:
+  treew-network:
+    driver: bridge
