@@ -43,10 +43,15 @@ app.get('/health', async (req, res) => {
 
 // Endpoint de búsqueda en Elasticsearch
 app.get('/search-elastic', async (req, res) => {
-  const { q } = req.query;
+  const { q, page = 1, size = 10 } = req.query;
+
+  // Validar y convertir parámetros de paginación
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const pageSize = Math.min(Math.max(1, parseInt(size, 10) || 10), 100); // Máximo 100 resultados por página
+
   try {
-    const results = await searchProductsElastic(q);
-    res.json({ results });
+    const results = await searchProductsElastic(q, pageNum, pageSize);
+    res.json(results);
   } catch (err) {
     res
       .status(500)

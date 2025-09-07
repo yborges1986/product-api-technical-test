@@ -64,29 +64,52 @@ export async function indexProduct(product) {
   }
 }
 
-export async function searchProductsElastic(query) {
+export async function searchProductsElastic(query, page = 1, size = 10) {
   try {
-    if (!query) {
-      const response = await elasticClient.search({
-        index: INDEX,
-        query: { match_all: {} },
-      });
-      return response.hits.hits.map((h) => h._source);
-    }
+    // Calcular el offset para la paginación
+    const from = (page - 1) * size;
+
+    const searchQuery = !query
+      ? { match_all: {} }
+      : {
+          multi_match: {
+            query,
+            fields: ['name', 'brand', 'description'],
+            fuzziness: 'AUTO',
+          },
+        };
+
     const response = await elasticClient.search({
       index: INDEX,
-      query: {
-        multi_match: {
-          query,
-          fields: ['name', 'brand', 'description'],
-          fuzziness: 'AUTO',
-        },
-      },
+      query: searchQuery,
+      from: from,
+      size: size,
     });
-    return response.hits.hits.map((h) => h._source);
+
+    return {
+      products: response.hits.hits.map((h) => h._source),
+      pagination: {
+        page: page,
+        size: size,
+        total: response.hits.total.value,
+        totalPages: Math.ceil(response.hits.total.value / size),
+        hasNext: page < Math.ceil(response.hits.total.value / size),
+        hasPrev: page > 1,
+      },
+    };
   } catch (error) {
     console.error('Error buscando productos:', error);
-    return [];
+    return {
+      products: [],
+      pagination: {
+        page: page,
+        size: size,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false,
+      },
+    };
   }
 }
 
