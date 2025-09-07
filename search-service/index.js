@@ -100,7 +100,7 @@ async function startServer() {
   const elasticConnected = await checkElasticsearchConnection();
   if (!elasticConnected) {
     console.log(
-      '⚠️  Iniciando sin conexión a Elasticsearch. Reintentando cada 30s...'
+      '⚠️  Iniciando sin conexión a Elasticsearch. Reintentando cada 15s...'
     );
 
     // Configurar reintento con sincronización automática
@@ -112,7 +112,7 @@ async function startServer() {
         await syncService.syncExistingProducts();
         startListeners();
       }
-    }, 30000);
+    }, 15000);
   } else {
     // Si se conecta inmediatamente, sincronizar productos existentes
     await syncService.syncExistingProducts();
