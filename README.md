@@ -111,7 +111,7 @@ El sistema incluye usuarios pre-configurados para testing:
 ```bash
 # 1. Clonar el repositorio
 git clone https://github.com/yborges1986/product-api-technical-test.git
-cd treew-tecnical-test
+cd product-api-technical-test/
 
 # 2. Ejecutar todo el ecosistema (un solo comando)
 npm run start

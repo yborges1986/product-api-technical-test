@@ -1,5 +1,7 @@
 import { Product } from '../models/index.js';
 import User from '../models/user.model.js';
+import createProduct from '../services/product/createProduct.js';
+import approveProduct from '../services/product/approveProduct.js';
 
 /**
  * Productos de ejemplo para demostración
@@ -59,7 +61,7 @@ const SAMPLE_PRODUCTS = [
 ];
 
 /**
- * Crear productos de ejemplo
+ * Crear productos de ejemplo usando los servicios (para disparar eventos NATS)
  */
 export const createSampleProducts = async () => {
   try {
@@ -89,49 +91,56 @@ export const createSampleProducts = async () => {
 
       // Seleccionar usuario según rol especificado
       let user;
-      let status;
-      let approvedBy = null;
-      let approvedAt = null;
-
       switch (productData.role) {
         case 'admin':
           user = admin;
-          status = 'published';
-          approvedBy = admin._id;
-          approvedAt = new Date();
           break;
         case 'editor':
           user = editor;
-          status = 'published';
-          approvedBy = editor._id;
-          approvedAt = new Date();
           break;
         case 'provider':
         default:
           user = provider;
-          status = 'pending';
           break;
       }
 
-      // Crear producto
+      // Crear producto usando el servicio (esto disparará eventos NATS automáticamente)
       const { role, ...productFields } = productData;
-      const product = new Product({
-        ...productFields,
-        status,
-        createdBy: user._id,
-        approvedBy,
-        approvedAt,
-      });
 
-      // Establecer usuario para auditoría
-      product.setAuditUser(user._id);
+      try {
+        const savedProduct = await createProduct(productFields, user);
+        createdProducts.push(savedProduct);
 
-      const savedProduct = await product.save();
-      createdProducts.push(savedProduct);
+        console.log(
+          `✅ Producto creado: ${productData.name} (${savedProduct.status}) por ${user.role}`
+        );
 
-      console.log(
-        `✅ Producto creado: ${productData.name} (${status}) por ${user.role}`
-      );
+        // Si fue creado por provider y está pending, programar aprobación
+        if (
+          savedProduct.status === 'pending' &&
+          productData.name === 'Yogurt Natural'
+        ) {
+          // Programar aprobación del yogurt después de 2 segundos
+          setTimeout(async () => {
+            try {
+              await approveProduct(savedProduct.gtin, editor);
+              console.log(
+                `✅ Producto "${savedProduct.name}" aprobado automáticamente`
+              );
+            } catch (approvalError) {
+              console.error(
+                '❌ Error aprobando producto:',
+                approvalError.message
+              );
+            }
+          }, 2000);
+        }
+      } catch (error) {
+        console.error(
+          `❌ Error creando producto ${productData.name}:`,
+          error.message
+        );
+      }
     }
 
     console.log(`🎉 ${createdProducts.length} productos de ejemplo creados`);
@@ -143,57 +152,12 @@ export const createSampleProducts = async () => {
 };
 
 /**
- * Simular flujo de aprobación para el último producto
- */
-export const simulateApprovalFlow = async () => {
-  try {
-    console.log('🔄 Simulando flujo de aprobación...');
-
-    // Buscar el yogurt (último producto de provider)
-    const yogurtProduct = await Product.findOne({ name: 'Yogurt Natural' });
-    const editor = await User.findOne({ role: 'editor' });
-
-    if (!yogurtProduct || !editor) {
-      console.log('⏭️  No se puede simular aprobación, faltan datos');
-      return;
-    }
-
-    if (yogurtProduct.status === 'published') {
-      console.log('⏭️  Producto ya está aprobado');
-      return;
-    }
-
-    // Aprobar producto
-    yogurtProduct.status = 'published';
-    yogurtProduct.approvedBy = editor._id;
-    yogurtProduct.approvedAt = new Date();
-
-    // Registrar auditoría de aprobación
-    yogurtProduct.setAuditUser(editor._id);
-    await yogurtProduct.recordApproval(editor._id);
-
-    await yogurtProduct.save();
-
-    console.log(`✅ Producto "${yogurtProduct.name}" aprobado por editor`);
-  } catch (error) {
-    console.error('❌ Error simulando aprobación:', error.message);
-  }
-};
-
-/**
  * Inicializar productos de ejemplo completos
  */
 export const initializeSampleProducts = async () => {
   try {
     console.log('🚀 Inicializando productos de ejemplo...');
-
     await createSampleProducts();
-
-    // Simular aprobación después de crear productos
-    setTimeout(async () => {
-      await simulateApprovalFlow();
-    }, 1000);
-
     console.log('✅ Inicialización de productos de ejemplo completada');
   } catch (error) {
     console.error('❌ Error en inicialización de productos:', error.message);

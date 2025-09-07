@@ -74,6 +74,7 @@ services:
       - NODE_ENV=production
       - NATS_URL=nats://nats:4222
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - PRODUCT_SERVICE_URL=http://product-service:3000
     depends_on:
       - elasticsearch
       - nats

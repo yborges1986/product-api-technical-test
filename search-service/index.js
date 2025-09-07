@@ -4,6 +4,7 @@ import {
   createIndexIfNotExists,
 } from './elastic/productIndex.js';
 import { elasticClient } from './elastic/client.js';
+import { syncService } from './services/index.js';
 
 import express from 'express';
 import cors from 'cors';
@@ -69,6 +70,24 @@ app.get('/product/:id', async (req, res) => {
   }
 });
 
+// Endpoint para sincronizar productos manualmente
+app.post('/sync', async (req, res) => {
+  try {
+    console.log('🔄 Iniciando sincronización manual...');
+    const result = await syncService.forceSyncProducts();
+    res.json({
+      message: 'Sincronización completada',
+      ...result,
+    });
+  } catch (err) {
+    console.error('❌ Error en sincronización manual:', err.message);
+    res.status(500).json({
+      error: 'Error en sincronización',
+      details: err.message,
+    });
+  }
+});
+
 const PORT = process.env.PORT || 4002;
 
 // Iniciar el servidor
@@ -78,12 +97,25 @@ async function startServer() {
     console.log(
       '⚠️  Iniciando sin conexión a Elasticsearch. Reintentando cada 30s...'
     );
-    setInterval(checkElasticsearchConnection, 30000);
+
+    // Configurar reintento con sincronización automática
+    const retryInterval = setInterval(async () => {
+      const connected = await checkElasticsearchConnection();
+      if (connected) {
+        console.log('✅ Elasticsearch conectado, iniciando sincronización...');
+        clearInterval(retryInterval);
+        await syncService.syncExistingProducts();
+        startListeners();
+      }
+    }, 30000);
+  } else {
+    // Si se conecta inmediatamente, sincronizar productos existentes
+    await syncService.syncExistingProducts();
+    startListeners();
   }
 
   app.listen(PORT, () => {
     console.log(`Search Service running on port ${PORT}`);
-    startListeners();
   });
 }
 
