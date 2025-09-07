@@ -86,14 +86,20 @@ export async function searchProductsElastic(query, page = 1, size = 10) {
       size: size,
     });
 
+    // Manejar diferentes versiones de Elasticsearch para el total
+    const total =
+      typeof response.hits.total === 'object'
+        ? response.hits.total.value
+        : response.hits.total;
+
     return {
       products: response.hits.hits.map((h) => h._source),
       pagination: {
         page: page,
         size: size,
-        total: response.hits.total.value,
-        totalPages: Math.ceil(response.hits.total.value / size),
-        hasNext: page < Math.ceil(response.hits.total.value / size),
+        total: total,
+        totalPages: Math.ceil(total / size),
+        hasNext: page < Math.ceil(total / size),
         hasPrev: page > 1,
       },
     };
@@ -112,7 +118,6 @@ export async function searchProductsElastic(query, page = 1, size = 10) {
     };
   }
 }
-
 export async function getProductById(id) {
   try {
     const response = await elasticClient.get({

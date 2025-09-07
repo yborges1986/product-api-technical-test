@@ -187,6 +187,7 @@ describe('Search Service Integration Tests', () => {
     test('should search products with query', async () => {
       const mockResponse = {
         hits: {
+          total: { value: 2 }, // Formato nuevo de Elasticsearch
           hits: [
             {
               _source: {
@@ -223,20 +224,31 @@ describe('Search Service Integration Tests', () => {
             fuzziness: 'AUTO',
           },
         },
+        from: 0,
+        size: 10,
       });
 
-      expect(results).toHaveLength(2);
-      expect(results[0]).toEqual({
+      expect(results.products).toHaveLength(2);
+      expect(results.products[0]).toEqual({
         id: '1',
         gtin: '1234567890123',
         name: 'Test Product 1',
         brand: 'Brand A',
+      });
+      expect(results.pagination).toEqual({
+        page: 1,
+        size: 10,
+        total: 2,
+        totalPages: 1,
+        hasNext: false,
+        hasPrev: false,
       });
     });
 
     test('should return all products when no query provided', async () => {
       const mockResponse = {
         hits: {
+          total: { value: 1 },
           hits: [
             {
               _source: {
@@ -255,9 +267,12 @@ describe('Search Service Integration Tests', () => {
       expect(mockElasticClient.search).toHaveBeenCalledWith({
         index: 'products',
         query: { match_all: {} },
+        from: 0,
+        size: 10,
       });
 
-      expect(results).toHaveLength(1);
+      expect(results.products).toHaveLength(1);
+      expect(results.pagination.total).toBe(1);
     });
 
     test('should return empty array on search error', async () => {
@@ -267,12 +282,23 @@ describe('Search Service Integration Tests', () => {
 
       const results = await productIndexModule.searchProductsElastic('test');
 
-      expect(results).toEqual([]);
+      expect(results).toEqual({
+        products: [],
+        pagination: {
+          page: 1,
+          size: 10,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false,
+        },
+      });
     });
 
     test('should handle special characters in search', async () => {
       const mockResponse = {
         hits: {
+          total: { value: 0 },
           hits: [],
         },
       };
@@ -284,7 +310,17 @@ describe('Search Service Integration Tests', () => {
       );
 
       expect(mockElasticClient.search).toHaveBeenCalled();
-      expect(results).toEqual([]);
+      expect(results).toEqual({
+        products: [],
+        pagination: {
+          page: 1,
+          size: 10,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false,
+        },
+      });
     });
   });
 
@@ -427,6 +463,7 @@ describe('Search Service Integration Tests', () => {
       const searchQueries = ['product', 'test', 'brand'];
       const mockResponse = {
         hits: {
+          total: { value: 1 },
           hits: [{ _source: { id: '1', name: 'Test Product' } }],
         },
       };
@@ -442,7 +479,8 @@ describe('Search Service Integration Tests', () => {
       expect(results).toHaveLength(3);
       expect(mockElasticClient.search).toHaveBeenCalledTimes(3);
       results.forEach((result) => {
-        expect(result).toHaveLength(1);
+        expect(result.products).toHaveLength(1);
+        expect(result.pagination.total).toBe(1);
       });
     });
   });
